@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/layout}">
+<head>
+  <title>Trang chủ</title>
+</head>
+<body>
+<main layout:fragment="content">
+  <h1>Home</h1>
+  <p th:if="${#authorization.expression('isAuthenticated()')}">
+    Xin chào <b th:text="${#authentication.principal.fullName}">User</b>
+  </p>
+</main>
+</body>
+</html>

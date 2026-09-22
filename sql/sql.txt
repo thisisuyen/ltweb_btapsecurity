@@ -1,0 +1,116 @@
+IF DB_ID(N'webst4') IS NULL
+BEGIN
+  CREATE DATABASE webst4;
+END
+GO
+
+USE webst4;
+GO
+
+IF OBJECT_ID('dbo.products', 'U') IS NOT NULL DROP TABLE dbo.products;
+IF OBJECT_ID('dbo.otp_tokens', 'U') IS NOT NULL DROP TABLE dbo.otp_tokens;
+IF OBJECT_ID('dbo.users', 'U') IS NOT NULL DROP TABLE dbo.users;
+IF OBJECT_ID('dbo.roles', 'U') IS NOT NULL DROP TABLE dbo.roles;
+GO
+
+CREATE TABLE dbo.roles (
+  id   BIGINT IDENTITY(1,1) NOT NULL,
+  name VARCHAR(50) NOT NULL,
+  CONSTRAINT pk_roles PRIMARY KEY (id),
+  CONSTRAINT uq_roles_name UNIQUE (name)
+);
+GO
+
+CREATE TABLE dbo.users (
+  id         BIGINT IDENTITY(1,1) NOT NULL,
+  username   VARCHAR(50)  NOT NULL,
+  email      VARCHAR(150) NOT NULL,
+  password   VARCHAR(200) NOT NULL,
+  full_name  NVARCHAR(200) NULL,
+  images     VARCHAR(500) NULL,
+  enabled    BIT NOT NULL CONSTRAINT df_users_enabled DEFAULT (1),
+  created_at DATETIME2 NOT NULL CONSTRAINT df_users_created_at DEFAULT (SYSDATETIME()),
+  role_id    BIGINT NOT NULL,
+  CONSTRAINT pk_users PRIMARY KEY (id),
+  CONSTRAINT uq_users_username UNIQUE (username),
+  CONSTRAINT uq_users_email UNIQUE (email),
+  CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES dbo.roles(id)
+);
+GO
+
+CREATE INDEX ix_users_username ON dbo.users(username);
+CREATE INDEX ix_users_email ON dbo.users(email);
+CREATE INDEX ix_users_role_id ON dbo.users(role_id);
+GO
+
+CREATE TABLE dbo.products (
+  id          BIGINT IDENTITY(1,1) NOT NULL,
+  name        NVARCHAR(200) NOT NULL,
+  description NVARCHAR(1000) NULL,
+  price       DECIMAL(18,2) NULL,
+  image_url   VARCHAR(500) NULL,
+  user_id     BIGINT NOT NULL,
+  CONSTRAINT pk_products PRIMARY KEY (id),
+  CONSTRAINT fk_products_user FOREIGN KEY (user_id) REFERENCES dbo.users(id),
+  CONSTRAINT ck_products_price CHECK (price IS NULL OR price >= 0)
+);
+GO
+
+CREATE INDEX ix_products_user_id ON dbo.products(user_id);
+GO
+
+CREATE TABLE dbo.otp_tokens (
+  id         BIGINT IDENTITY(1,1) NOT NULL,
+  email      VARCHAR(150) NOT NULL,
+  code       VARCHAR(10)  NOT NULL,
+  type       VARCHAR(30)  NOT NULL,
+  expires_at DATETIME2 NOT NULL,
+  used       BIT NOT NULL CONSTRAINT df_otp_used DEFAULT (0),
+  created_at DATETIME2 NOT NULL CONSTRAINT df_otp_created_at DEFAULT (SYSDATETIME()),
+  CONSTRAINT pk_otp_tokens PRIMARY KEY (id),
+  CONSTRAINT ck_otp_type CHECK (type IN ('REGISTER','FORGOT_PASSWORD'))
+);
+GO
+
+CREATE INDEX ix_otp_email_type_used_created
+ON dbo.otp_tokens(email, type, used, created_at DESC);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.roles WHERE name = 'ROLE_USER')
+  INSERT INTO dbo.roles(name) VALUES ('ROLE_USER');
+
+IF NOT EXISTS (SELECT 1 FROM dbo.roles WHERE name = 'ROLE_ADMIN')
+  INSERT INTO dbo.roles(name) VALUES ('ROLE_ADMIN');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE username = 'user01')
+BEGIN
+  INSERT INTO dbo.users(username, email, password, full_name, images, enabled, role_id)
+  SELECT
+    'user01',
+    'user01@gmail.com',
+    '{bcrypt}$2a$10$REPLACE_WITH_VALID_BCRYPT_HASH',
+    N'Nguyễn Hữu Trung',
+    '/images/user.png',
+    1,
+    r.id
+  FROM dbo.roles r
+  WHERE r.name = 'ROLE_USER';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.users WHERE username = 'admin01')
+BEGIN
+  INSERT INTO dbo.users(username, email, password, full_name, images, enabled, role_id)
+  SELECT
+    'admin01',
+    'admin01@gmail.com',
+    '{bcrypt}$2a$10$REPLACE_WITH_VALID_BCRYPT_HASH',
+    N'System Admin',
+    '/images/avatar-default.png',
+    1,
+    r.id
+  FROM dbo.roles r
+  WHERE r.name = 'ROLE_ADMIN';
+END
+GO
