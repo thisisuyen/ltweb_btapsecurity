@@ -1,33 +1,54 @@
-HELP.md
+# Secrets
+.env
+.env.*
+
+# Maven / Build
 target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+*.class
 
-### STS ###
-.apt_generated
+# Local uploads
+uploads/
+
+# Eclipse / STS
+.settings/
 .classpath
-.factorypath
 .project
-.settings
-.springBeans
-.sts4-cache
+.factorypath
+.metadata/
+bin/
 
-### IntelliJ IDEA ###
-.idea
-*.iws
+# IntelliJ
+.idea/
 *.iml
+*.iws
 *.ipr
+out/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
+# VS Code
 .vscode/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# SQL phải được push
+!sql/
+!sql/**
+
+# Maven Wrapper phải được push
+!.mvn/
+!.mvn/**
+!mvnw
+!mvnw.cmd
