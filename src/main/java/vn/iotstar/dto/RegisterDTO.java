@@ -6,40 +6,66 @@ import jakarta.validation.constraints.Size;
 
 public class RegisterDTO {
 
-  @NotBlank
-  @Size(min = 3, max = 50)
-  private String username;
+    @NotBlank(message = "Username không được để trống")
+    @Size(min = 3, max = 50, message = "Username phải từ 3 đến 50 ký tự")
+    private String username;
 
-  @Email
-  @NotBlank
-  private String email;
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không hợp lệ")
+    private String email;
 
-  @NotBlank
-  @Size(min = 3, max = 200)
-  private String fullName;
+    @NotBlank(message = "Họ tên không được để trống")
+    @Size(min = 3, max = 200, message = "Họ tên phải từ 3 đến 200 ký tự")
+    private String fullName;
 
-  @NotBlank
-  @Size(min = 6, max = 100)
-  private String password;
+    @NotBlank(message = "Mật khẩu không được để trống")
+    @Size(min = 6, max = 100, message = "Mật khẩu phải có ít nhất 6 ký tự")
+    private String password;
 
-  @NotBlank
-  @Size(min = 6, max = 100)
-  private String confirmPassword;
+    @NotBlank(message = "Vui lòng xác nhận mật khẩu")
+    @Size(min = 6, max = 100, message = "Mật khẩu xác nhận phải có ít nhất 6 ký tự")
+    private String confirmPassword;
 
-  public RegisterDTO() {}
+    public RegisterDTO() {
+    }
 
-  public String getUsername() { return username; }
-  public void setUsername(String username) { this.username = username; }
+    public String getUsername() {
+        return username;
+    }
 
-  public String getEmail() { return email; }
-  public void setEmail(String email) { this.email = email; }
+    public void setUsername(String username) {
+        this.username = username;
+    }
 
-  public String getFullName() { return fullName; }
-  public void setFullName(String fullName) { this.fullName = fullName; }
+    public String getEmail() {
+        return email;
+    }
 
-  public String getPassword() { return password; }
-  public void setPassword(String password) { this.password = password; }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-  public String getConfirmPassword() { return confirmPassword; }
-  public void setConfirmPassword(String confirmPassword) { this.confirmPassword = confirmPassword; }
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getConfirmPassword() {
+        return confirmPassword;
+    }
+
+    public void setConfirmPassword(String confirmPassword) {
+        this.confirmPassword = confirmPassword;
+    }
 }

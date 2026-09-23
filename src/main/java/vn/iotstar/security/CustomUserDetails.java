@@ -3,49 +3,79 @@ package vn.iotstar.security;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import vn.iotstar.entity.Role;
+import vn.iotstar.entity.User;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class CustomUserDetails implements UserDetails {
-  private static final long serialVersionUID = 1L;
 
-  private final Long id;
-  private final String username;
-  private final String email;
-  private final String password;
-  private final String fullName;
-  private final String images;
-  private final String role;
-  private final boolean enabled;
+    private final User user;
 
-  public CustomUserDetails(Long id, String username, String email, String password,
-                           String fullName, String images, String role, boolean enabled) {
-    this.id = id;
-    this.username = username;
-    this.email = email;
-    this.password = password;
-    this.fullName = fullName;
-    this.images = images;
-    this.role = role;
-    this.enabled = enabled;
-  }
+    public CustomUserDetails(User user) {
+        this.user = user;
+    }
 
-  public Long getId() { return id; }
-  public String getEmail() { return email; }
-  public String getFullName() { return fullName; }
-  public String getImages() { return images; }
-  public String getRole() { return role; }
+    
+    public User getUser() {
+        return user;
+    }
 
-  @Override
-  public Collection<? extends GrantedAuthority> getAuthorities() {
-    return List.of(new SimpleGrantedAuthority(role));
-  }
+    public String getImages() {
+        return user.getImages(); 
+    }
 
-  @Override public String getPassword() { return password; }
-  @Override public String getUsername() { return username; }
-  @Override public boolean isAccountNonExpired() { return true; }
-  @Override public boolean isAccountNonLocked() { return true; }
-  @Override public boolean isCredentialsNonExpired() { return true; }
-  @Override public boolean isEnabled() { return enabled; }
+    public String getRole() {
+        Set<Role> roles = user.getRoles();
+        if (roles == null || roles.isEmpty()) return null;
+       
+        return roles.iterator().next().getName();
+    }
+
+    public String getFullName() {
+        return user.getFullName();
+    }
+
+    // ===== UserDetails =====
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        if (user.getRoles() == null) return java.util.Collections.emptySet();
+        return user.getRoles()
+                .stream()
+                .map(Role::getName)
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toSet());
+    }
+
+    @Override
+    public String getPassword() {
+        return user.getPassword();
+    }
+
+    @Override
+    public String getUsername() {
+        return user.getUsername();
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return user.isEnabled();
+    }
 }

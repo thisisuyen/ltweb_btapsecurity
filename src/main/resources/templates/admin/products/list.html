@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/layout}">
+<head>
+  <title>Manage Products</title>
+</head>
+<body>
+<section layout:fragment="content" class="container">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+    <h2 class="page-title">Manage Products</h2>
+    <a class="btn btn-primary" th:href="@{/admin/products/create}">+ Thêm</a>
+  </div>
+
+  <form method="get" th:action="@{/admin/products}" class="card p-2 mt-2"
+        style="display:flex; gap:10px; align-items:center;">
+    <input class="form-control" name="kw" placeholder="Tìm theo tên/mô tả..." th:value="${kw}">
+    <button class="btn btn-outline" type="submit">Tìm</button>
+  </form>
+
+  <div class="card mt-2 p-0" style="overflow:hidden;">
+    <table class="table">
+      <thead>
+      <tr>
+        <th style="width:70px;">ID</th>
+        <th style="width:110px;">Ảnh</th>
+        <th>Tên</th>
+        <th style="width:140px;">Giá</th>
+        <th style="width:90px;">SL</th>
+        <th style="width:200px;">Thao tác</th>
+      </tr>
+      </thead>
+
+      <tbody>
+      <tr th:each="p : ${page.content}">
+        <td th:text="${p.id}">1</td>
+
+        <td>
+          <img th:if="${p.image != null and !#strings.isEmpty(p.image)}"
+               th:src="${p.image}"
+               style="width:72px;height:72px;border-radius:16px;object-fit:cover;border:1px solid rgba(0,0,0,.06);">
+          <span th:if="${p.image == null or #strings.isEmpty(p.image)}" class="text-muted">No image</span>
+        </td>
+
+        <td>
+          <div style="font-weight:800;" th:text="${p.name}">Name</div>
+          <div class="text-muted" style="max-width:520px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+               th:text="${p.description}">Desc</div>
+        </td>
+
+        <td th:text="${p.price}">0</td>
+        <td th:text="${p.quantity}">0</td>
+
+        <td style="white-space:nowrap;">
+          <a class="btn btn-sm btn-outline" th:href="@{|/admin/products/${p.id}/edit|}">Sửa</a>
+
+          <form th:action="@{|/admin/products/${p.id}/delete|}" method="post" style="display:inline; margin-left:6px;">
+            <button class="btn btn-sm btn-danger" type="submit"
+                    onclick="return confirm('Xoá sản phẩm này?')">Xoá</button>
+          </form>
+        </td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-2" style="display:flex; gap:8px; align-items:center;">
+    <a class="btn btn-outline"
+       th:if="${page.hasPrevious()}"
+       th:href="@{/admin/products(page=${page.number-1},size=${page.size},kw=${kw})}">Prev</a>
+
+    <span class="text-muted"
+          th:text="${page.totalPages == 0 ? '0/0' : (page.number+1) + ' / ' + page.totalPages}">
+      1 / 1
+    </span>
+
+    <a class="btn btn-outline"
+       th:if="${page.hasNext()}"
+       th:href="@{/admin/products(page=${page.number+1},size=${page.size},kw=${kw})}">Next</a>
+  </div>
+</section>
+</body>
+</html>

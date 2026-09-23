@@ -1,118 +1,369 @@
 package vn.iotstar.controller;
 
 import jakarta.validation.Valid;
+
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+
 import vn.iotstar.dto.ForgotPasswordDTO;
 import vn.iotstar.dto.RegisterDTO;
 import vn.iotstar.dto.ResetPasswordDTO;
 import vn.iotstar.service.AuthService;
+import vn.iotstar.service.impl.AuthServiceImpl;
 
 @Controller
+@RequestMapping("/auth")
 public class AuthController {
 
-  private final AuthService authService;
+    private final AuthService authService;
 
-  public AuthController(AuthService authService) {
-    this.authService = authService;
-  }
-
-  @GetMapping("/login")
-  public String login() {
-    return "auth/login";
-  }
-
-  @GetMapping("/register")
-  public String registerForm(Model model) {
-    model.addAttribute("registerDTO", new RegisterDTO());
-    return "auth/register";
-  }
-
-  @PostMapping("/register")
-  public String register(@Valid @ModelAttribute("registerDTO") RegisterDTO dto,
-                         BindingResult result,
-                         Model model) {
-    if (result.hasErrors()) return "auth/register";
-    try {
-      String email = authService.register(dto);
-      return "redirect:/verify-otp?email=" + email;
-    } catch (Exception ex) {
-      model.addAttribute("error", ex.getMessage());
-      return "auth/register";
+    public AuthController(AuthService authService) {
+        this.authService = authService;
     }
-  }
 
-  @GetMapping("/verify-otp")
-  public String verifyOtpForm(@RequestParam("email") String email, Model model) {
-    model.addAttribute("email", email);
-    return "auth/verify-otp";
-  }
+    // =========================
+    // LOGIN
+    // =========================
 
-  @PostMapping("/verify-otp")
-  public String verifyOtp(@RequestParam("email") String email,
-                          @RequestParam("code") String code,
-                          Model model) {
-    boolean ok = authService.verifyRegisterOtp(email, code);
-    if (ok) return "redirect:/login?verified=true";
-    model.addAttribute("email", email);
-    model.addAttribute("error", "OTP không đúng hoặc đã hết hạn.");
-    return "auth/verify-otp";
-  }
-
-  @PostMapping("/register/resend-otp")
-  public String resendOtp(@RequestParam("email") String email, Model model) {
-    try {
-      authService.resendRegisterOtp(email);
-      return "redirect:/verify-otp?email=" + email + "&resent=true";
-    } catch (Exception ex) {
-      return "redirect:/verify-otp?email=" + email + "&resent=false";
+    @GetMapping("/login")
+    public String login() {
+        return "auth/login";
     }
-  }
 
-  @GetMapping("/forgot-password")
-  public String forgotForm(Model model) {
-    model.addAttribute("forgotDTO", new ForgotPasswordDTO());
-    return "auth/forgot-password";
-  }
+    // =========================
+    // REGISTER
+    // =========================
 
-  @PostMapping("/forgot-password")
-  public String forgot(@Valid @ModelAttribute("forgotDTO") ForgotPasswordDTO dto,
-                       BindingResult result,
-                       Model model) {
-    if (result.hasErrors()) return "auth/forgot-password";
-    try {
-      authService.forgotPassword(dto);
-      return "redirect:/reset-password?email=" + dto.getEmail() + "&sent=true";
-    } catch (Exception ex) {
-      model.addAttribute("error", ex.getMessage());
-      return "auth/forgot-password";
+    @GetMapping("/register")
+    public String register(Model model) {
+
+        model.addAttribute(
+                "form",
+                new RegisterDTO()
+        );
+
+        return "auth/register";
     }
-  }
 
-  @GetMapping("/reset-password")
-  public String resetForm(@RequestParam("email") String email,
-                          @RequestParam(value = "sent", required = false) String sent,
-                          Model model) {
-    ResetPasswordDTO dto = new ResetPasswordDTO();
-    dto.setEmail(email);
-    model.addAttribute("resetDTO", dto);
-    model.addAttribute("sent", sent);
-    return "auth/reset-password";
-  }
+    @PostMapping("/register")
+    public String registerPost(
+            @Valid
+            @ModelAttribute("form")
+            RegisterDTO form,
 
-  @PostMapping("/reset-password")
-  public String reset(@Valid @ModelAttribute("resetDTO") ResetPasswordDTO dto,
-                      BindingResult result,
-                      Model model) {
-    if (result.hasErrors()) return "auth/reset-password";
-    try {
-      authService.resetPassword(dto);
-      return "redirect:/login?reset=true";
-    } catch (Exception ex) {
-      model.addAttribute("error", ex.getMessage());
-      return "auth/reset-password";
+            BindingResult br,
+
+            Model model) {
+
+        System.out.println();
+        System.out.println(
+                "======================================"
+        );
+        System.out.println("REGISTER POST RECEIVED");
+        System.out.println(
+                "username = " + form.getUsername()
+        );
+        System.out.println(
+                "email = " + form.getEmail()
+        );
+        System.out.println(
+                "fullName = " + form.getFullName()
+        );
+        System.out.println(
+                "password received = "
+                + (form.getPassword() != null)
+        );
+        System.out.println(
+                "confirmPassword received = "
+                + (form.getConfirmPassword() != null)
+        );
+
+        /*
+         * VALIDATION
+         */
+        if (br.hasErrors()) {
+
+            System.err.println(
+                    "REGISTER VALIDATION FAILED"
+            );
+
+            br.getFieldErrors().forEach(error -> {
+
+                System.err.println(
+                        "Field: "
+                        + error.getField()
+                        + " | value: "
+                        + error.getRejectedValue()
+                        + " | error: "
+                        + error.getDefaultMessage()
+                );
+            });
+
+            System.out.println(
+                    "======================================"
+            );
+
+            return "auth/register";
+        }
+
+        System.out.println(
+                "Validation OK"
+        );
+
+        try {
+
+            System.out.println(
+                    "Calling AuthService.register()..."
+            );
+
+            authService.register(form);
+
+            System.out.println(
+                    "REGISTER SUCCESS"
+            );
+
+            System.out.println(
+                    "======================================"
+            );
+
+            return "redirect:/auth/verify-otp?email="
+                    + form.getEmail();
+
+        } catch (Exception e) {
+
+            System.err.println(
+                    "REGISTER SERVICE FAILED"
+            );
+
+            System.err.println(
+                    "Error: " + e.getMessage()
+            );
+
+            e.printStackTrace();
+
+            System.out.println(
+                    "======================================"
+            );
+
+            model.addAttribute(
+                    "error",
+                    e.getMessage()
+            );
+
+            return "auth/register";
+        }
     }
-  }
+
+    // =========================
+    // VERIFY REGISTER OTP
+    // =========================
+
+    @GetMapping("/verify-otp")
+    public String verifyOtp(
+            @RequestParam String email,
+            Model model) {
+
+        model.addAttribute(
+                "email",
+                email
+        );
+
+        if (authService instanceof AuthServiceImpl impl) {
+
+            String fallback =
+                    impl.consumeLastOtpFallback();
+
+            if (fallback != null &&
+                    !fallback.isBlank()) {
+
+                model.addAttribute(
+                        "otpFallback",
+                        fallback
+                );
+            }
+        }
+
+        return "auth/verify-otp";
+    }
+
+    @PostMapping("/verify-otp")
+    public String verifyOtpPost(
+            @RequestParam String email,
+            @RequestParam String otp,
+            Model model) {
+
+        try {
+
+            authService.verifyRegisterOtp(
+                    email,
+                    otp
+            );
+
+            return "redirect:/auth/login?verified=true";
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            model.addAttribute(
+                    "error",
+                    e.getMessage()
+            );
+
+            model.addAttribute(
+                    "email",
+                    email
+            );
+
+            return "auth/verify-otp";
+        }
+    }
+
+    // =========================
+    // RESEND REGISTER OTP
+    // =========================
+
+    @PostMapping("/resend-otp")
+    public String resendOtp(
+            @RequestParam String email) {
+
+        try {
+
+            authService.resendRegisterOtp(
+                    email
+            );
+
+            return "redirect:/auth/verify-otp?email="
+                    + email;
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return "redirect:/auth/verify-otp?email="
+                    + email;
+        }
+    }
+
+    // =========================
+    // FORGOT PASSWORD
+    // =========================
+
+    @GetMapping("/forgot-password")
+    public String forgotPassword(
+            Model model) {
+
+        model.addAttribute(
+                "form",
+                new ForgotPasswordDTO()
+        );
+
+        return "auth/forgot-password";
+    }
+
+    @PostMapping("/forgot-password")
+    public String forgotPasswordPost(
+            @Valid
+            @ModelAttribute("form")
+            ForgotPasswordDTO form,
+
+            BindingResult br,
+
+            Model model) {
+
+        if (br.hasErrors()) {
+            return "auth/forgot-password";
+        }
+
+        try {
+
+            authService.forgotPassword(form);
+
+            return "redirect:/auth/reset-password?email="
+                    + form.getEmail();
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            model.addAttribute(
+                    "error",
+                    e.getMessage()
+            );
+
+            return "auth/forgot-password";
+        }
+    }
+
+    // =========================
+    // RESET PASSWORD
+    // =========================
+
+    @GetMapping("/reset-password")
+    public String resetPassword(
+            @RequestParam String email,
+            Model model) {
+
+        ResetPasswordDTO dto =
+                new ResetPasswordDTO();
+
+        dto.setEmail(email);
+
+        model.addAttribute(
+                "form",
+                dto
+        );
+
+        if (authService instanceof AuthServiceImpl impl) {
+
+            String fallback =
+                    impl.consumeLastOtpFallback();
+
+            if (fallback != null &&
+                    !fallback.isBlank()) {
+
+                model.addAttribute(
+                        "otpFallback",
+                        fallback
+                );
+            }
+        }
+
+        return "auth/reset-password";
+    }
+
+    @PostMapping("/reset-password")
+    public String resetPasswordPost(
+            @Valid
+            @ModelAttribute("form")
+            ResetPasswordDTO form,
+
+            BindingResult br,
+
+            Model model) {
+
+        if (br.hasErrors()) {
+            return "auth/reset-password";
+        }
+
+        try {
+
+            authService.resetPassword(form);
+
+            return "redirect:/auth/login?reset=true";
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            model.addAttribute(
+                    "error",
+                    e.getMessage()
+            );
+
+            return "auth/reset-password";
+        }
+    }
 }

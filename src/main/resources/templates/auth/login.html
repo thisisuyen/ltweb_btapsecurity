@@ -1,49 +1,43 @@
-<!DOCTYPE html>
-<html lang="vi"
-      xmlns:th="http://www.thymeleaf.org"
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layouts/layout}">
 <head><title>Đăng nhập</title></head>
 <body>
-<div layout:fragment="content" class="auth-page">
+<section layout:fragment="content" class="auth-page">
   <div class="card auth-card">
-    <div class="title">
-      <span class="brand-badge"></span>
-      <h2>Đăng nhập</h2>
-    </div>
-
-    <div th:if="${param.error}" class="alert alert-error">
-      Username/email hoặc password không đúng (hoặc chưa xác thực).
-    </div>
-    <div th:if="${param.logout}" class="alert alert-success">
-      Bạn đã đăng xuất.
-    </div>
-    <div th:if="${param.verified}" class="alert alert-success">
-      Xác thực thành công. Hãy đăng nhập.
-    </div>
-    <div th:if="${param.reset}" class="alert alert-success">
-      Đổi mật khẩu thành công.
-    </div>
-
-    <form th:action="@{/login}" method="post">
-      <label>Username hoặc Email</label>
-      <input name="username" required autofocus>
-
-      <label>Password</label>
-      <input type="password" name="password" required>
-
-      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-
-      <div class="auth-actions">
-        <button class="btn btn-primary" type="submit">Đăng nhập</button>
+    <div class="card-body">
+      <div class="brand-line">
+        <span class="brand-dot"></span>
+        <h2 class="m-0">Đăng nhập</h2>
       </div>
-    </form>
 
-    <p class="muted" style="margin-top:12px;">
-      <a th:href="@{/register}">Tạo tài khoản</a> ·
-      <a th:href="@{/forgot-password}">Quên mật khẩu?</a>
-    </p>
+      <div th:if="${param.error}" class="alert alert-danger">Sai tài khoản hoặc mật khẩu</div>
+      <div th:if="${param.logout}" class="alert alert-info">Bạn đã đăng xuất</div>
+      <div th:if="${param.verified}" class="alert alert-success">Verify thành công, hãy đăng nhập</div>
+      <div th:if="${param.reset}" class="alert alert-success">Đổi mật khẩu thành công</div>
+
+      <form th:action="@{/auth/login}" method="post" class="form">
+        <div class="form-group">
+          <label>Username / Email</label>
+          <input class="form-control" name="username" placeholder="Nhập username hoặc email" required>
+        </div>
+
+        <div class="form-group">
+          <label>Mật khẩu</label>
+          <input class="form-control" name="password" type="password" placeholder="••••••" required>
+        </div>
+
+        <button class="btn btn-primary w-100" type="submit">Đăng nhập</button>
+
+        <div class="auth-links">
+          <a th:href="@{/auth/forgot-password}">Quên mật khẩu?</a>
+          <span class="dot">•</span>
+          <a th:href="@{/auth/register}">Tạo tài khoản</a>
+        </div>
+      </form>
+    </div>
   </div>
-</div>
+</section>
 </body>
 </html>

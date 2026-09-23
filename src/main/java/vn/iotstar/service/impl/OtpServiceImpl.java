@@ -1,77 +1,266 @@
 package vn.iotstar.service.impl;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.MailException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import vn.iotstar.entity.OtpToken;
-import vn.iotstar.entity.OtpType;
-import vn.iotstar.repository.OtpTokenRepository;
-import vn.iotstar.service.MailService;
-import vn.iotstar.service.OtpService;
-
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import vn.iotstar.entity.OtpToken;
+import vn.iotstar.entity.OtpType;
+import vn.iotstar.entity.User;
+import vn.iotstar.repository.OtpTokenRepository;
+import vn.iotstar.service.EmailService;
+import vn.iotstar.service.OtpService;
 
 @Service
 public class OtpServiceImpl implements OtpService {
 
-  private final OtpTokenRepository otpRepo;
-  private final MailService mailService;
-  private final boolean devPrintOtp;
+    private final OtpTokenRepository otpTokenRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
-  private final SecureRandom random = new SecureRandom();
+    private final SecureRandom secureRandom = new SecureRandom();
 
-  public OtpServiceImpl(OtpTokenRepository otpRepo,
-                        MailService mailService,
-                        @Value("${app.otp.dev-print:false}") boolean devPrintOtp) {
-    this.otpRepo = otpRepo;
-    this.mailService = mailService;
-    this.devPrintOtp = devPrintOtp;
-  }
+    @Value("${app.otp.ttl-minutes:5}")
+    private int ttlMinutes;
 
-  private String genCode6() {
-    int n = 100000 + random.nextInt(900000);
-    return String.valueOf(n);
-  }
+    @Value("${app.otp.max-attempts:5}")
+    private int maxAttempts;
 
-  @Override
-  @Transactional
-  public void sendOtp(String email, OtpType type) {
-    String code = genCode6();
+    @Value("${app.otp.dev-print:true}")
+    private boolean devPrint;
 
-    OtpToken token = new OtpToken();
-    token.setEmail(email);
-    token.setCode(code);
-    token.setType(type);
-    token.setUsed(false);
-    token.setExpiresAt(LocalDateTime.now().plusMinutes(5));
-    otpRepo.save(token);
+    public OtpServiceImpl(
+            OtpTokenRepository otpTokenRepository,
+            PasswordEncoder passwordEncoder,
+            EmailService emailService) {
 
-    String subject = (type == OtpType.REGISTER) ? "OTP xác thực đăng ký" : "OTP đặt lại mật khẩu";
-    String content =
-        "Mã OTP của bạn: " + code + "\n" +
-        "Hết hạn sau 5 phút.\n";
-
-    try {
-      mailService.send(email, subject, content);
-    } catch (MailException ex) {
-      if (devPrintOtp) {
-        System.out.println("=== DEV OTP (MAIL FAILED) ===");
-        System.out.println("Email: " + email);
-        System.out.println("Type : " + type);
-        System.out.println("OTP  : " + code);
-        System.out.println("============================");
-      }
-      throw new IllegalStateException("Gửi email OTP thất bại (Authentication failed). Kiểm tra SMTP/App Password.");
+        this.otpTokenRepository = otpTokenRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
     }
-  }
 
-  @Override
-  @Transactional(readOnly = true)
-  public boolean verify(String email, OtpType type, String code) {
-    return otpRepo.findTopByEmailAndTypeAndCodeAndUsedFalseOrderByCreatedAtDesc(email, type, code)
-        .filter(t -> t.getExpiresAt().isAfter(LocalDateTime.now()))
-        .isPresent();
-  }
+    @Override
+    @Transactional
+    public String createAndSendOtp(
+            User user,
+            OtpType type,
+            String subject,
+            String prefix) {
+
+        if (user == null) {
+            throw new RuntimeException("User không tồn tại.");
+        }
+
+        if (user.getId() == null) {
+            throw new RuntimeException("User chưa được lưu vào database.");
+        }
+
+        if (user.getEmail() == null ||
+                user.getEmail().isBlank()) {
+
+            throw new RuntimeException(
+                    "Email của user đang trống."
+            );
+        }
+
+        String otp = generateOtp6();
+
+        LocalDateTime now = LocalDateTime.now();
+
+        OtpToken token = new OtpToken();
+
+        token.setUser(user);
+        token.setType(type);
+
+        // Không lưu OTP plaintext
+        token.setOtpHash(
+                passwordEncoder.encode(otp)
+        );
+
+        token.setAttempts(0);
+        token.setCreatedAt(now);
+        token.setExpiresAt(
+                now.plusMinutes(ttlMinutes)
+        );
+        token.setVerifiedAt(null);
+
+        otpTokenRepository.save(token);
+
+        String to = user.getEmail();
+
+        String mailSubject =
+                subject == null ? "" : subject;
+
+        String body =
+                (prefix == null ? "" : prefix)
+                + otp
+                + "\n\nMã OTP hết hạn sau "
+                + ttlMinutes
+                + " phút.";
+
+        /*
+         * DEVELOPMENT MODE
+         *
+         * app.otp.dev-print=true
+         *
+         * Không gửi mail.
+         * OTP xuất hiện trong Console.
+         */
+        if (devPrint) {
+
+            System.out.println();
+            System.out.println(
+                    "======================================"
+            );
+            System.out.println("OTP DEVELOPMENT MODE");
+            System.out.println("Email : " + to);
+            System.out.println("Type  : " + type);
+            System.out.println("OTP   : " + otp);
+            System.out.println(
+                    "======================================"
+            );
+            System.out.println();
+
+            return otp;
+        }
+
+        /*
+         * PRODUCTION MODE
+         *
+         * Sau khi transaction commit
+         * mới gửi email.
+         */
+        if (TransactionSynchronizationManager
+                .isSynchronizationActive()) {
+
+            TransactionSynchronizationManager
+                    .registerSynchronization(
+                        new TransactionSynchronization() {
+
+                            @Override
+                            public void afterCommit() {
+
+                                try {
+
+                                    emailService.send(
+                                            to,
+                                            mailSubject,
+                                            body
+                                    );
+
+                                    System.out.println(
+                                            "[OTP] Email sent to: "
+                                            + to
+                                    );
+
+                                } catch (Exception e) {
+
+                                    System.err.println(
+                                            "[OTP] Send mail failed: "
+                                            + e.getMessage()
+                                    );
+                                }
+                            }
+                        }
+                    );
+
+        } else {
+
+            emailService.send(
+                    to,
+                    mailSubject,
+                    body
+            );
+        }
+
+        return otp;
+    }
+
+    @Override
+    @Transactional
+    public void verifyOtpOrThrow(
+            User user,
+            OtpType type,
+            String otp) {
+
+        if (user == null) {
+            throw new RuntimeException(
+                    "User không tồn tại."
+            );
+        }
+
+        if (otp == null || otp.isBlank()) {
+            throw new RuntimeException(
+                    "OTP không được để trống."
+            );
+        }
+
+        LocalDateTime now =
+                LocalDateTime.now();
+
+        OtpToken token =
+                otpTokenRepository
+                    .findFirstByUserIdAndTypeAndVerifiedAtIsNullAndExpiresAtAfterOrderByCreatedAtDesc(
+                            user.getId(),
+                            type,
+                            now
+                    )
+                    .orElseThrow(
+                        () -> new RuntimeException(
+                            "OTP không tồn tại hoặc đã hết hạn."
+                        )
+                    );
+
+        if (token.getAttempts() >= maxAttempts) {
+
+            throw new RuntimeException(
+                    "Bạn đã nhập sai OTP quá số lần cho phép."
+            );
+        }
+
+        /*
+         * Tăng attempts cho mỗi lần verify.
+         */
+        token.setAttempts(
+                token.getAttempts() + 1
+        );
+
+        boolean valid =
+                passwordEncoder.matches(
+                        otp.trim(),
+                        token.getOtpHash()
+                );
+
+        if (!valid) {
+
+            otpTokenRepository.save(token);
+
+            throw new RuntimeException(
+                    "OTP không đúng."
+            );
+        }
+
+        token.setVerifiedAt(
+                LocalDateTime.now()
+        );
+
+        otpTokenRepository.save(token);
+    }
+
+    private String generateOtp6() {
+
+        int number =
+                secureRandom.nextInt(1_000_000);
+
+        return String.format(
+                "%06d",
+                number
+        );
+    }
 }

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="vi"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/layout}">
+<head>
+  <title>Profile</title>
+</head>
+<body>
+<section layout:fragment="content" class="container">
+  <h2 class="page-title">Thông tin cá nhân</h2>
+
+  <div class="card p-3" style="max-width:720px;">
+    <div style="display:flex; gap:16px; align-items:center;">
+      <img th:src="${user.images != null and !#strings.isEmpty(user.images) ? user.images : '/images/avatar-default.png'}"
+           style="width:96px;height:96px;border-radius:24px;object-fit:cover;">
+      <div style="flex:1;">
+        <div style="font-weight:800; font-size:18px;" th:text="${user.fullName}">Full Name</div>
+        <div class="text-muted" th:text="${user.email}">email</div>
+        <div class="text-muted" th:text="${user.username}">username</div>
+      </div>
+    </div>
+
+    <hr style="margin:16px 0;">
+
+    <div th:if="${param.ok}" class="alert alert-success">Cập nhật avatar thành công</div>
+    <div th:if="${param.err}" class="alert alert-danger">Vui lòng chọn ảnh</div>
+
+    <form th:action="@{/profile/avatar}" method="post" enctype="multipart/form-data">
+      <div class="form-group">
+        <label>Chọn avatar</label>
+        <input class="form-control" type="file" name="avatarFile" accept="image/*" required>
+      </div>
+      <button class="btn btn-primary" type="submit">Upload</button>
+    </form>
+  </div>
+</section>
+</body>
+</html>

@@ -3,130 +3,310 @@ package vn.iotstar.service.impl;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import vn.iotstar.dto.ForgotPasswordDTO;
 import vn.iotstar.dto.RegisterDTO;
 import vn.iotstar.dto.ResetPasswordDTO;
-import vn.iotstar.entity.OtpToken;
 import vn.iotstar.entity.OtpType;
 import vn.iotstar.entity.Role;
 import vn.iotstar.entity.User;
-import vn.iotstar.repository.OtpTokenRepository;
 import vn.iotstar.repository.RoleRepository;
 import vn.iotstar.repository.UserRepository;
 import vn.iotstar.service.AuthService;
 import vn.iotstar.service.OtpService;
 
-import java.time.LocalDateTime;
-
 @Service
 public class AuthServiceImpl implements AuthService {
 
-  private final UserRepository userRepo;
-  private final RoleRepository roleRepo;
-  private final OtpTokenRepository otpRepo;
-  private final OtpService otpService;
-  private final PasswordEncoder encoder;
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final OtpService otpService;
 
-  public AuthServiceImpl(UserRepository userRepo,
-                         RoleRepository roleRepo,
-                         OtpTokenRepository otpRepo,
-                         OtpService otpService,
-                         PasswordEncoder encoder) {
-    this.userRepo = userRepo;
-    this.roleRepo = roleRepo;
-    this.otpRepo = otpRepo;
-    this.otpService = otpService;
-    this.encoder = encoder;
-  }
+    /*
+     * Chỉ dùng DEV.
+     *
+     * Sau này nên bỏ và chỉ xem OTP ở console.
+     */
+    private String lastOtpFallback;
 
-  @Override
-  @Transactional
-  public String register(RegisterDTO dto) {
-    String username = dto.getUsername().trim();
-    String email = dto.getEmail().trim().toLowerCase();
+    public AuthServiceImpl(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            OtpService otpService) {
 
-    if (!dto.getPassword().equals(dto.getConfirmPassword())) {
-      throw new IllegalArgumentException("Mật khẩu xác nhận không khớp.");
-    }
-    if (userRepo.existsByUsername(username)) {
-      throw new IllegalArgumentException("Username đã tồn tại.");
-    }
-    if (userRepo.existsByEmail(email)) {
-      throw new IllegalArgumentException("Email đã tồn tại.");
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.otpService = otpService;
     }
 
-    Role userRole = roleRepo.findByName("ROLE_USER")
-        .orElseThrow(() -> new IllegalStateException("Thiếu ROLE_USER trong DB."));
+    public synchronized String consumeLastOtpFallback() {
 
-    User u = new User();
-    u.setUsername(username);
-    u.setEmail(email);
-    u.setFullName(dto.getFullName());
-    u.setImages("/images/avatar-default.png");
-    u.setPassword(encoder.encode(dto.getPassword()));
-    u.setRole(userRole);
-    u.setEnabled(false); // chờ OTP
-    userRepo.save(u);
+        String otp = lastOtpFallback;
 
-    otpService.sendOtp(email, OtpType.REGISTER);
-    return email;
-  }
+        lastOtpFallback = null;
 
-  @Override
-  @Transactional
-  public boolean verifyRegisterOtp(String email, String code) {
-    String e = email.trim().toLowerCase();
-
-    OtpToken token = otpRepo.findTopByEmailAndTypeAndCodeAndUsedFalseOrderByCreatedAtDesc(e, OtpType.REGISTER, code)
-        .filter(t -> t.getExpiresAt().isAfter(LocalDateTime.now()))
-        .orElse(null);
-
-    if (token == null) return false;
-
-    User user = userRepo.findByEmail(e).orElseThrow();
-    user.setEnabled(true);
-    userRepo.save(user);
-
-    token.setUsed(true);
-    otpRepo.save(token);
-
-    return true;
-  }
-
-  @Override
-  @Transactional
-  public void resendRegisterOtp(String email) {
-    String e = email.trim().toLowerCase();
-    userRepo.findByEmail(e).orElseThrow(() -> new IllegalArgumentException("Email không tồn tại."));
-    otpService.sendOtp(e, OtpType.REGISTER);
-  }
-
-  @Override
-  @Transactional
-  public void forgotPassword(ForgotPasswordDTO dto) {
-    String e = dto.getEmail().trim().toLowerCase();
-    userRepo.findByEmail(e).orElseThrow(() -> new IllegalArgumentException("Email không tồn tại."));
-    otpService.sendOtp(e, OtpType.FORGOT_PASSWORD);
-  }
-
-  @Override
-  @Transactional
-  public void resetPassword(ResetPasswordDTO dto) {
-    String e = dto.getEmail().trim().toLowerCase();
-
-    if (!dto.getNewPassword().equals(dto.getConfirmPassword())) {
-      throw new IllegalArgumentException("Mật khẩu xác nhận không khớp.");
+        return otp;
     }
 
-    OtpToken token = otpRepo.findTopByEmailAndTypeAndCodeAndUsedFalseOrderByCreatedAtDesc(e, OtpType.FORGOT_PASSWORD, dto.getCode())
-        .filter(t -> t.getExpiresAt().isAfter(LocalDateTime.now()))
-        .orElseThrow(() -> new IllegalArgumentException("OTP không đúng hoặc đã hết hạn."));
+    @Override
+    @Transactional
+    public void register(RegisterDTO dto) {
 
-    User user = userRepo.findByEmail(e).orElseThrow();
-    user.setPassword(encoder.encode(dto.getNewPassword()));
-    userRepo.save(user);
+        if (dto == null) {
+            throw new RuntimeException(
+                    "Dữ liệu đăng ký không hợp lệ."
+            );
+        }
 
-    token.setUsed(true);
-    otpRepo.save(token);
-  }
+        /*
+         * Password confirmation
+         */
+        if (dto.getPassword() == null ||
+                dto.getConfirmPassword() == null ||
+                !dto.getPassword().equals(
+                        dto.getConfirmPassword())) {
+
+            throw new RuntimeException(
+                    "Mật khẩu xác nhận không khớp."
+            );
+        }
+
+        String username =
+                dto.getUsername().trim();
+
+        String email =
+                dto.getEmail()
+                   .trim()
+                   .toLowerCase();
+
+        String fullName =
+                dto.getFullName().trim();
+
+        /*
+         * Check username
+         */
+        if (userRepository
+                .existsByUsername(username)) {
+
+            throw new RuntimeException(
+                    "Username đã tồn tại."
+            );
+        }
+
+        /*
+         * Check email
+         */
+        if (userRepository
+                .existsByEmail(email)) {
+
+            throw new RuntimeException(
+                    "Email đã tồn tại."
+            );
+        }
+
+        /*
+         * ROLE_USER phải tồn tại.
+         *
+         * DataInitializer của bạn sẽ tạo role này.
+         */
+        Role roleUser =
+                roleRepository
+                    .findByName("ROLE_USER")
+                    .orElseThrow(
+                        () -> new RuntimeException(
+                            "ROLE_USER không tồn tại trong database."
+                        )
+                    );
+
+        User user = new User();
+
+        user.setUsername(username);
+        user.setEmail(email);
+        user.setFullName(fullName);
+
+        user.setPassword(
+                passwordEncoder.encode(
+                        dto.getPassword()
+                )
+        );
+
+        /*
+         * Chưa verify OTP.
+         */
+        user.setEnabled(false);
+
+        user.getRoles().add(roleUser);
+
+        /*
+         * saveAndFlush để đảm bảo User có ID
+         * trước khi tạo OTP.
+         */
+        userRepository.saveAndFlush(user);
+
+        /*
+         * Tạo OTP.
+         */
+        lastOtpFallback =
+                otpService.createAndSendOtp(
+                        user,
+                        OtpType.REGISTER,
+                        "OTP Register",
+                        "Mã OTP đăng ký: "
+                );
+    }
+
+    @Override
+    @Transactional
+    public void verifyRegisterOtp(
+            String email,
+            String otp) {
+
+        if (email == null ||
+                email.isBlank()) {
+
+            throw new RuntimeException(
+                    "Email không hợp lệ."
+            );
+        }
+
+        User user =
+                userRepository
+                    .findByEmail(
+                        email.trim().toLowerCase()
+                    )
+                    .orElseThrow(
+                        () -> new RuntimeException(
+                            "Không tìm thấy tài khoản."
+                        )
+                    );
+
+        /*
+         * Nếu đã verify rồi.
+         */
+        if (user.isEnabled()) {
+            throw new RuntimeException(
+                    "Tài khoản đã được xác thực."
+            );
+        }
+
+        otpService.verifyOtpOrThrow(
+                user,
+                OtpType.REGISTER,
+                otp
+        );
+
+        /*
+         * OTP chính xác.
+         */
+        user.setEnabled(true);
+
+        userRepository.save(user);
+    }
+
+    @Override
+    public void resendRegisterOtp(String email) {
+
+        if (email == null ||
+                email.isBlank()) {
+
+            throw new RuntimeException(
+                    "Email không hợp lệ."
+            );
+        }
+
+        User user =
+                userRepository
+                    .findByEmail(
+                        email.trim().toLowerCase()
+                    )
+                    .orElseThrow(
+                        () -> new RuntimeException(
+                            "Không tìm thấy tài khoản."
+                        )
+                    );
+
+        if (user.isEnabled()) {
+            throw new RuntimeException(
+                    "Tài khoản đã được xác thực."
+            );
+        }
+
+        lastOtpFallback =
+                otpService.createAndSendOtp(
+                        user,
+                        OtpType.REGISTER,
+                        "OTP Register",
+                        "Mã OTP đăng ký: "
+                );
+    }
+
+    @Override
+    public void forgotPassword(
+            ForgotPasswordDTO dto) {
+
+        String email =
+                dto.getEmail()
+                   .trim()
+                   .toLowerCase();
+
+        User user =
+                userRepository
+                    .findByEmail(email)
+                    .orElseThrow(
+                        () -> new RuntimeException(
+                            "Email không tồn tại."
+                        )
+                    );
+
+        lastOtpFallback =
+                otpService.createAndSendOtp(
+                        user,
+                        OtpType.FORGOT_PASSWORD,
+                        "OTP Reset Password",
+                        "Mã OTP reset mật khẩu: "
+                );
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(
+            ResetPasswordDTO dto) {
+
+        String email =
+                dto.getEmail()
+                   .trim()
+                   .toLowerCase();
+
+        User user =
+                userRepository
+                    .findByEmail(email)
+                    .orElseThrow(
+                        () -> new RuntimeException(
+                            "Email không tồn tại."
+                        )
+                    );
+
+        /*
+         * Verify OTP trước.
+         */
+        otpService.verifyOtpOrThrow(
+                user,
+                OtpType.FORGOT_PASSWORD,
+                dto.getOtp()
+        );
+
+        /*
+         * Encode password mới.
+         */
+        user.setPassword(
+                passwordEncoder.encode(
+                        dto.getNewPassword()
+                )
+        );
+
+        userRepository.save(user);
+    }
 }

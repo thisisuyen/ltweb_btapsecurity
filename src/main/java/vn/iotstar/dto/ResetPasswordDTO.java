@@ -6,33 +6,41 @@ import jakarta.validation.constraints.Size;
 
 public class ResetPasswordDTO {
 
-  @Email
-  @NotBlank
-  private String email;
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không hợp lệ")
+    private String email;
 
-  @NotBlank
-  @Size(min = 4, max = 10)
-  private String code;
+    @NotBlank(message = "OTP không được để trống")
+    private String otp;
 
-  @NotBlank
-  @Size(min = 6, max = 100)
-  private String newPassword;
+    @NotBlank(message = "Mật khẩu mới không được để trống")
+    @Size(min = 6, max = 100, message = "Mật khẩu phải có ít nhất 6 ký tự")
+    private String newPassword;
 
-  @NotBlank
-  @Size(min = 6, max = 100)
-  private String confirmPassword;
+    public ResetPasswordDTO() {
+    }
 
-  public ResetPasswordDTO() {}
+    public String getEmail() {
+        return email;
+    }
 
-  public String getEmail() { return email; }
-  public void setEmail(String email) { this.email = email; }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-  public String getCode() { return code; }
-  public void setCode(String code) { this.code = code; }
+    public String getOtp() {
+        return otp;
+    }
 
-  public String getNewPassword() { return newPassword; }
-  public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
+    public void setOtp(String otp) {
+        this.otp = otp;
+    }
 
-  public String getConfirmPassword() { return confirmPassword; }
-  public void setConfirmPassword(String confirmPassword) { this.confirmPassword = confirmPassword; }
+    public String getNewPassword() {
+        return newPassword;
+    }
+
+    public void setNewPassword(String newPassword) {
+        this.newPassword = newPassword;
+    }
 }

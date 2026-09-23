@@ -1,54 +1,62 @@
 package vn.iotstar.entity;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "otp_tokens")
 public class OtpToken {
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
 
-  @Column(nullable = false, length = 150)
-  private String email;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-  @Column(nullable = false, length = 10)
-  private String code;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
-  @Enumerated(EnumType.STRING)
-  @Column(nullable = false, length = 30)
-  private OtpType type;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private OtpType type;
 
-  @Column(nullable = false)
-  private LocalDateTime expiresAt;
+    @Column(name = "otp_hash", nullable = false, length = 255)
+    private String otpHash;
 
-  @Column(nullable = false)
-  private boolean used = false;
+    @Column(nullable = false)
+    private int attempts;
 
-  @Column(nullable = false)
-  private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
 
-  public OtpToken() {}
+    @Column(name = "expires_at", nullable = false)
+    private LocalDateTime expiresAt;
 
-  public Long getId() { return id; }
-  public void setId(Long id) { this.id = id; }
+    @Column(name = "verified_at")
+    private LocalDateTime verifiedAt;
 
-  public String getEmail() { return email; }
-  public void setEmail(String email) { this.email = email; }
+    // getters/setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-  public String getCode() { return code; }
-  public void setCode(String code) { this.code = code; }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 
-  public OtpType getType() { return type; }
-  public void setType(OtpType type) { this.type = type; }
+    public OtpType getType() { return type; }
+    public void setType(OtpType type) { this.type = type; }
 
-  public LocalDateTime getExpiresAt() { return expiresAt; }
-  public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
+    public String getOtpHash() { return otpHash; }
+    public void setOtpHash(String otpHash) { this.otpHash = otpHash; }
 
-  public boolean isUsed() { return used; }
-  public void setUsed(boolean used) { this.used = used; }
+    public int getAttempts() { return attempts; }
+    public void setAttempts(int attempts) { this.attempts = attempts; }
 
-  public LocalDateTime getCreatedAt() { return createdAt; }
-  public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
+
+    public LocalDateTime getVerifiedAt() { return verifiedAt; }
+    public void setVerifiedAt(LocalDateTime verifiedAt) { this.verifiedAt = verifiedAt; }
 }

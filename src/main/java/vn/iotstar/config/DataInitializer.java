@@ -17,11 +17,20 @@ public class DataInitializer {
                          UserRepository userRepository,
                          PasswordEncoder passwordEncoder) {
     return args -> {
-      Role roleUser = roleRepository.findByName("ROLE_USER")
-          .orElseGet(() -> roleRepository.save(new Role(null, "ROLE_USER")));
 
-      Role roleAdmin = roleRepository.findByName("ROLE_ADMIN")
-          .orElseGet(() -> roleRepository.save(new Role(null, "ROLE_ADMIN")));
+      Role roleUser = roleRepository.findByName("ROLE_USER").orElse(null);
+      if (roleUser == null) {
+        Role r = new Role();
+        r.setName("ROLE_USER");
+        roleUser = roleRepository.save(r);
+      }
+
+      Role roleAdmin = roleRepository.findByName("ROLE_ADMIN").orElse(null);
+      if (roleAdmin == null) {
+        Role r = new Role();
+        r.setName("ROLE_ADMIN");
+        roleAdmin = roleRepository.save(r);
+      }
 
       if (userRepository.findByUsername("user01").isEmpty()) {
         User u = new User();
@@ -30,8 +39,11 @@ public class DataInitializer {
         u.setPassword(passwordEncoder.encode("123456"));
         u.setFullName("Nguyễn Hữu Trung");
         u.setImages("/images/user.png");
-        u.setRole(roleUser);
         u.setEnabled(true);
+
+        // nếu User bạn là roles (Set<Role>) thì dùng add role
+        u.getRoles().add(roleUser);
+
         userRepository.save(u);
       }
 
@@ -42,8 +54,10 @@ public class DataInitializer {
         a.setPassword(passwordEncoder.encode("123456"));
         a.setFullName("System Admin");
         a.setImages("/images/avatar-default.png");
-        a.setRole(roleAdmin);
         a.setEnabled(true);
+
+        a.getRoles().add(roleAdmin);
+
         userRepository.save(a);
       }
     };

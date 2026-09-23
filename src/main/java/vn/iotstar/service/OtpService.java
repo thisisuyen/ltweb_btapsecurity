@@ -1,8 +1,20 @@
 package vn.iotstar.service;
 
 import vn.iotstar.entity.OtpType;
+import vn.iotstar.entity.User;
 
 public interface OtpService {
-  void sendOtp(String email, OtpType type);
-  boolean verify(String email, OtpType type, String code);
+
+    String createAndSendOtp(
+            User user,
+            OtpType type,
+            String subject,
+            String prefix
+    );
+
+    void verifyOtpOrThrow(
+            User user,
+            OtpType type,
+            String otp
+    );
 }

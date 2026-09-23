@@ -1,82 +1,103 @@
 package vn.iotstar.entity;
 
+import vn.iotstar.util.ImageValueUtil;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
-@Table(
-    name = "users",
-    uniqueConstraints = {
-        @UniqueConstraint(name = "uk_users_username", columnNames = "username"),
-        @UniqueConstraint(name = "uk_users_email", columnNames = "email")
-    }
-)
+@Table(name="users")
 public class User {
 
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-  @Column(nullable = false, length = 50)
-  private String username;
+    @Column(name="username", nullable=false, unique=true, length=50)
+    private String username;
 
-  @Column(nullable = false, length = 150)
-  private String email;
+    @Column(name="email", nullable=false, unique=true, length=120)
+    private String email;
 
-  @Column(nullable = false, length = 200)
-  private String password;
+    @Column(name="password", nullable=false, length=255)
+    private String password;
 
-  @Column(name = "full_name", length = 200, columnDefinition = "nvarchar(200)")
-  private String fullName;
+    @Column(name="full_name", length=150)
+    private String fullName;
 
-  @Column(length = 500)
-  private String images;
+    // url|publicId
+    @Column(name="images", length=1000)
+    private String images;
 
-  @Column(nullable = false)
-  private boolean enabled = true;
+    @Column(name="enabled", nullable=false)
+    private boolean enabled;
 
-  @Column(nullable = false)
-  private LocalDateTime createdAt = LocalDateTime.now();
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name="user_roles",
+            joinColumns = @JoinColumn(name="user_id"),
+            inverseJoinColumns = @JoinColumn(name="role_id")
+    )
+    private Set<Role> roles = new HashSet<>();
 
-  @ManyToOne(fetch = FetchType.EAGER)
-  @JoinColumn(name = "role_id", nullable = false)
-  private Role role;
+    @Column(name="created_at", nullable=false)
+    private LocalDateTime createdAt;
 
-  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-  private List<Product> products = new ArrayList<>();
+    @Column(name="updated_at")
+    private LocalDateTime updatedAt;
 
-  public User() {}
+    public User() {}
 
-  public Long getId() { return id; }
-  public void setId(Long id) { this.id = id; }
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+    }
 
-  public String getUsername() { return username; }
-  public void setUsername(String username) { this.username = username; }
+    @PreUpdate
+    public void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
-  public String getEmail() { return email; }
-  public void setEmail(String email) { this.email = email; }
+    @Transient
+    public String getImageUrl() {
+        return ImageValueUtil.extractUrl(this.images);
+    }
 
-  public String getPassword() { return password; }
-  public void setPassword(String password) { this.password = password; }
+    @Transient
+    public String getImagePublicId() {
+        return ImageValueUtil.extractPublicId(this.images);
+    }
 
-  public String getFullName() { return fullName; }
-  public void setFullName(String fullName) { this.fullName = fullName; }
+    // getters/setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-  public String getImages() { return images; }
-  public void setImages(String images) { this.images = images; }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
 
-  public boolean isEnabled() { return enabled; }
-  public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-  public LocalDateTime getCreatedAt() { return createdAt; }
-  public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 
-  public Role getRole() { return role; }
-  public void setRole(Role role) { this.role = role; }
+    public String getFullName() { return fullName; }
+    public void setFullName(String fullName) { this.fullName = fullName; }
 
-  public List<Product> getProducts() { return products; }
-  public void setProducts(List<Product> products) { this.products = products; }
+    public String getImages() { return images; }
+    public void setImages(String images) { this.images = images; }
+
+    public boolean isEnabled() { return enabled; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+    public Set<Role> getRoles() { return roles; }
+    public void setRoles(Set<Role> roles) { this.roles = roles; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

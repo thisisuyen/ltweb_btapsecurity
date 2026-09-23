@@ -1,46 +1,74 @@
 package vn.iotstar.entity;
 
+import vn.iotstar.util.ImageValueUtil;
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 @Entity
-@Table(name = "products")
+@Table(name="products")
 public class Product {
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
 
-  @Column(nullable = false, columnDefinition = "nvarchar(200)")
-  private String name;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-  @Column(columnDefinition = "nvarchar(1000)")
-  private String description;
+    @Column(name="name", nullable=false, length=255)
+    private String name;
 
-  private Double price;
+    @Column(name="description", length=2000)
+    private String description;
 
-  @Column(length = 500)
-  private String imageUrl;
+    @Column(name="price", nullable=false, precision=18, scale=2)
+    private BigDecimal price;
 
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "user_id", nullable = false)
-  private User user;
+    @Column(name="quantity", nullable=false)
+    private int quantity;
 
-  public Product() {}
+    // url|publicId
+    @Column(name="image", length=1000)
+    private String image;
 
-  public Long getId() { return id; }
-  public void setId(Long id) { this.id = id; }
+    @Column(name="created_at", nullable=false)
+    private LocalDateTime createdAt;
 
-  public String getName() { return name; }
-  public void setName(String name) { this.name = name; }
+    public Product() {}
 
-  public String getDescription() { return description; }
-  public void setDescription(String description) { this.description = description; }
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) createdAt = LocalDateTime.now();
+    }
 
-  public Double getPrice() { return price; }
-  public void setPrice(Double price) { this.price = price; }
+    @Transient
+    public String getImageUrl() {
+        return ImageValueUtil.extractUrl(this.image);
+    }
 
-  public String getImageUrl() { return imageUrl; }
-  public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    @Transient
+    public String getImagePublicId() {
+        return ImageValueUtil.extractPublicId(this.image);
+    }
 
-  public User getUser() { return user; }
-  public void setUser(User user) { this.user = user; }
+    // getters/setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+
+    public int getQuantity() { return quantity; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+
+    public String getImage() { return image; }
+    public void setImage(String image) { this.image = image; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

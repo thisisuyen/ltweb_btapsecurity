@@ -72,7 +72,7 @@
       <scope>runtime</scope>
     </dependency>
 
-    <!-- Cloudinary -->
+   
     <dependency>
       <groupId>com.cloudinary</groupId>
       <artifactId>cloudinary-http5</artifactId>
@@ -94,7 +94,7 @@
       <optional>true</optional>
     </dependency>
 
-    <!-- Test (fix SpringBootTest/Test errors) -->
+    <!-- Tests -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
@@ -117,8 +117,12 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+
         <configuration>
           <release>${java.version}</release>
+
+         
           <annotationProcessorPaths>
             <path>
               <groupId>org.mapstruct</groupId>
@@ -127,7 +131,22 @@
             </path>
           </annotationProcessorPaths>
         </configuration>
+
+        <executions>
+          <execution>
+            <id>default-testCompile</id>
+            <phase>test-compile</phase>
+            <goals>
+              <goal>testCompile</goal>
+            </goals>
+            <configuration>
+             
+              <proc>none</proc>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
+
     </plugins>
   </build>
 </project>

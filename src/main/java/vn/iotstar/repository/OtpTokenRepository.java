@@ -1,12 +1,20 @@
 package vn.iotstar.repository;
 
+import java.time.LocalDateTime;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+
 import vn.iotstar.entity.OtpToken;
 import vn.iotstar.entity.OtpType;
 
-import java.util.Optional;
+public interface OtpTokenRepository
+        extends JpaRepository<OtpToken, Long> {
 
-public interface OtpTokenRepository extends JpaRepository<OtpToken, Long> {
-  Optional<OtpToken> findTopByEmailAndTypeAndUsedFalseOrderByCreatedAtDesc(String email, OtpType type);
-  Optional<OtpToken> findTopByEmailAndTypeAndCodeAndUsedFalseOrderByCreatedAtDesc(String email, OtpType type, String code);
+    Optional<OtpToken>
+    findFirstByUserIdAndTypeAndVerifiedAtIsNullAndExpiresAtAfterOrderByCreatedAtDesc(
+            Long userId,
+            OtpType type,
+            LocalDateTime now
+    );
 }
